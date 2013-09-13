@@ -1,14 +1,7 @@
 package org.kohsuke.file_leak_detector;
 
-import org.kohsuke.asm3.Label;
-import org.kohsuke.asm3.MethodAdapter;
-import org.kohsuke.asm3.MethodVisitor;
-import org.kohsuke.asm3.Type;
-import org.kohsuke.asm3.commons.LocalVariablesSorter;
-import org.kohsuke.file_leak_detector.transform.ClassTransformSpec;
-import org.kohsuke.file_leak_detector.transform.CodeGenerator;
-import org.kohsuke.file_leak_detector.transform.MethodAppender;
-import org.kohsuke.file_leak_detector.transform.TransformerImpl;
+import static org.kohsuke.asm3.Opcodes.ALOAD;
+import static org.kohsuke.asm3.Opcodes.ASTORE;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -33,7 +26,15 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.zip.ZipFile;
 
-import static org.kohsuke.asm3.Opcodes.*;
+import org.kohsuke.asm3.Label;
+import org.kohsuke.asm3.MethodAdapter;
+import org.kohsuke.asm3.MethodVisitor;
+import org.kohsuke.asm3.Type;
+import org.kohsuke.asm3.commons.LocalVariablesSorter;
+import org.kohsuke.file_leak_detector.transform.ClassTransformSpec;
+import org.kohsuke.file_leak_detector.transform.CodeGenerator;
+import org.kohsuke.file_leak_detector.transform.MethodAppender;
+import org.kohsuke.file_leak_detector.transform.TransformerImpl;
 
 /**
  * Java agent that instruments JDK classes to keep track of where file descriptors are opened.
@@ -91,8 +92,9 @@ public class AgentMain {
                 Class.forName("java.net.PlainSocketImpl"),
                 ZipFile.class);
 
-        if (serverPort>=0)
-            runHttpServer(serverPort);
+        if (serverPort>=0) {
+			runHttpServer(serverPort);
+		}
 
         // still haven't fully figured out how to intercept NIO, especially with close, so commenting out
 //                Socket.class,
@@ -102,7 +104,8 @@ public class AgentMain {
     }
 
     private static void runHttpServer(int port) throws IOException {
-        final ServerSocket ss = new ServerSocket();
+        @SuppressWarnings("resource")
+		final ServerSocket ss = new ServerSocket();
         ss.bind(new InetSocketAddress("localhost", port));
         System.err.println("Serving file leak stats on http://localhost:"+ss.getLocalPort()+"/ for stats");
         final ExecutorService es = Executors.newCachedThreadPool(new ThreadFactory() {
@@ -197,7 +200,7 @@ public class AgentMain {
      * Creates {@link ClassTransformSpec} that intercepts
      * a constructor and the close method.
      */
-    private static ClassTransformSpec newSpec(final Class c, String constructorDesc) {
+    private static ClassTransformSpec newSpec(final Class<?> c, String constructorDesc) {
         final String binName = c.getName().replace('.', '/');
         return new ClassTransformSpec(binName,
             new ConstructorOpenInterceptor(constructorDesc, binName),
@@ -217,7 +220,8 @@ public class AgentMain {
             super(methodName, "()V");
         }
         
-        protected void append(CodeGenerator g) {
+        @Override
+		protected void append(CodeGenerator g) {
             g.invokeAppStatic(Listener.class,"close",
                     new Class[]{Object.class},
                     new int[]{0});
@@ -240,7 +244,8 @@ public class AgentMain {
             };
         }
 
-        protected void append(CodeGenerator g) {
+        @Override
+		protected void append(CodeGenerator g) {
             g.invokeAppStatic(Listener.class,"openSocket",
                     new Class[]{Object.class},
                     new int[]{0});
@@ -266,7 +271,8 @@ public class AgentMain {
             };
         }
 
-        protected void append(CodeGenerator g) {
+        @Override
+		protected void append(CodeGenerator g) {
             // the 's' parameter is the new socket that will own the socket
             g.invokeAppStatic(Listener.class,"openSocket",
                     new Class[]{Object.class},
@@ -343,9 +349,10 @@ public class AgentMain {
 
                 // normal execution continues here
                 g.visitLabel(tail);
-            } else
-                // no processing
+            } else {
+				// no processing
                 super.visitMethodInsn(opcode, owner, name, desc);
+			}
         }
     }
 
@@ -379,7 +386,8 @@ public class AgentMain {
             };
         }
 
-        protected void append(CodeGenerator g) {
+        @Override
+		protected void append(CodeGenerator g) {
             g.invokeAppStatic(Listener.class,"open",
                     new Class[]{Object.class, File.class},
                     new int[]{0,1});
