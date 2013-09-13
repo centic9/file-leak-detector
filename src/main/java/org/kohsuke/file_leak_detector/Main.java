@@ -1,13 +1,6 @@
 package org.kohsuke.file_leak_detector;
 
-import com.sun.tools.attach.VirtualMachine;
-import org.kohsuke.args4j.Argument;
-import org.kohsuke.args4j.CmdLineException;
-import org.kohsuke.args4j.CmdLineParser;
-import sun.tools.jar.resources.jar;
-
 import java.io.File;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.MalformedURLException;
 import java.net.URI;
@@ -18,6 +11,12 @@ import java.security.CodeSource;
 import java.security.ProtectionDomain;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import org.kohsuke.args4j.Argument;
+import org.kohsuke.args4j.CmdLineException;
+import org.kohsuke.args4j.CmdLineParser;
+
+import com.sun.tools.attach.VirtualMachine;
 
 /**
  * Entry point for externally attaching agent into another local process.
@@ -48,7 +47,7 @@ public class Main {
     }
 
     public void run() throws Exception {
-        Class api = loadAttachApi();
+        Class<?> api = loadAttachApi();
 
         System.out.println("Connecting to "+pid);
         Object vm = api.getMethod("attach",String.class).invoke(null,pid);
@@ -66,7 +65,7 @@ public class Main {
     /**
      * Loads the {@link VirtualMachine} class as the entry point to the attach API.
      */
-    private Class loadAttachApi() throws MalformedURLException, ClassNotFoundException {
+    private Class<?> loadAttachApi() throws MalformedURLException, ClassNotFoundException {
         File toolsJar = locateToolsJar();
 
         ClassLoader cl = wrapIntoClassLoader(toolsJar);

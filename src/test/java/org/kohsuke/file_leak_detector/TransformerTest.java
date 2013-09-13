@@ -1,5 +1,9 @@
 package org.kohsuke.file_leak_detector;
 
+import java.io.PrintWriter;
+import java.util.ArrayList;
+import java.util.List;
+
 import org.apache.commons.io.IOUtils;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -10,11 +14,6 @@ import org.kohsuke.asm3.util.CheckClassAdapter;
 import org.kohsuke.file_leak_detector.transform.ClassTransformSpec;
 import org.kohsuke.file_leak_detector.transform.TransformerImpl;
 
-import java.io.PrintWriter;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.zip.ZipFile;
-
 /**
  * @author Kohsuke Kawaguchi
  */
@@ -22,9 +21,9 @@ import java.util.zip.ZipFile;
 public class TransformerTest {
     List<ClassTransformSpec> specs = AgentMain.createSpec();
 
-    Class c;
+    Class<?> c;
     
-    public TransformerTest(Class c) {
+    public TransformerTest(Class<?> c) {
         this.c = c;
     }
 
