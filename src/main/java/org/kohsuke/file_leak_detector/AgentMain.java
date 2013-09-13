@@ -18,7 +18,9 @@ import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketImpl;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
@@ -74,6 +76,28 @@ public class AgentMain {
                 } else
                 if(t.startsWith("listener=")) {
                     ActivityListener.LIST.add((ActivityListener) AgentMain.class.getClassLoader().loadClass(t.substring(9)).newInstance());
+                } else
+                if(t.startsWith("excludes=")) {
+                	List<String> lines = new ArrayList<String>();
+                    BufferedReader reader = new BufferedReader(new FileReader(t.substring(9)));
+                    try {
+	                    String line = reader.readLine();
+	                    while (line != null) {
+	                        lines.add(line);
+	                        line = reader.readLine();
+	                    }
+                    } finally {
+                    	reader.close();
+                    }
+                    
+                    // add the entries from the excludes-file, but filter out empty ones
+                    Iterator<String> it = lines.iterator();
+                    while(it.hasNext()) {
+                    	String str = it.next().trim();
+                    	if(!str.isEmpty() && !str.startsWith("#")) {
+                    		Listener.EXCLUDES.add(str);
+                    	}
+                    }
                 } else {
                     System.err.println("Unknown option: "+t);
                     usageAndQuit();
@@ -158,6 +182,8 @@ public class AgentMain {
         System.err.println("                Specify 0 to choose random available port, -1 to disable, which is default.");
         System.err.println("  strong      - Don't let GC auto-close leaking file descriptors");
         System.err.println("  listener=S  - Specify the fully qualified name of ActivityListener class to activate from beginning");
+        System.err.println("  excludes=File - Exclude any opened file where a line in the given exclude-file matches");
+        System.err.println("                  one of the lines from the stacktrace of the open-call.");
     }
 
     static List<ClassTransformSpec> createSpec() {
