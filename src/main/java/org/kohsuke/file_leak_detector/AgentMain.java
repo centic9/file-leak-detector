@@ -3,13 +3,7 @@ package org.kohsuke.file_leak_detector;
 import static org.kohsuke.asm3.Opcodes.ALOAD;
 import static org.kohsuke.asm3.Opcodes.ASTORE;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.io.RandomAccessFile;
+import java.io.*;
 import java.lang.instrument.Instrumentation;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
@@ -115,9 +109,27 @@ public class AgentMain {
                     final Socket s = ss.accept();
                     es.submit(new Callable<Object>() {
                         public Object call() throws Exception {
-                            Listener.dump(s.getOutputStream());
-                            s.close();
-                            return null;
+                        	HTTPSession session = new HTTPSession(s) {
+								
+								@Override
+								public InputStream serve() {
+									ByteArrayOutputStream out = new ByteArrayOutputStream();
+									try {
+										out.write("<html><body><pre>".getBytes("UTF-8"));
+										Listener.dump(out);
+										out.write("</pre></body></html>".getBytes("UTF-8"));
+									} catch (UnsupportedEncodingException e) {
+										e.printStackTrace();
+									} catch (IOException e) {
+										e.printStackTrace();
+									}
+									
+									return new ByteArrayInputStream(out.toByteArray());
+								}
+                        	};
+                        	session.run();
+
+                        	return null;
                         }
                     });
                 }
