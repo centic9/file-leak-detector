@@ -1,24 +1,24 @@
 package org.kohsuke.file_leak_detector;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.io.RandomAccessFile;
 import java.io.Writer;
 import java.lang.reflect.Field;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.net.SocketAddress;
 import java.net.SocketImpl;
+import java.nio.channels.SocketChannel;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Date;
-import java.net.Socket;
-import java.net.ServerSocket;
-import java.nio.channels.SocketChannel;
 import java.util.WeakHashMap;
 import java.util.zip.ZipFile;
 
@@ -46,14 +46,16 @@ public class Listener {
             StackTraceElement[] trace = stackTrace.getStackTrace();
             int i=0;
             // skip until we find the Method.invoke() that called us
-            for (; i<trace.length; i++)
-                if(trace[i].getClassName().equals("java.lang.reflect.Method")) {
+            for (; i<trace.length; i++) {
+				if(trace[i].getClassName().equals("java.lang.reflect.Method")) {
                     i++;
                     break;
                 }
+			}
             // print the rest
-            for (; i < trace.length; i++)
-                pw.println("\tat " + trace[i]);
+            for (; i < trace.length; i++) {
+				pw.println("\tat " + trace[i]);
+			}
             pw.flush();
         }
     }
@@ -68,7 +70,8 @@ public class Listener {
             this.file = file;
         }
 
-        public void dump(String prefix, PrintWriter pw) {
+        @Override
+		public void dump(String prefix, PrintWriter pw) {
             pw.println(prefix + file + " by thread:" + threadName + " on " + new Date(time));
             super.dump(prefix,pw);
         }
@@ -91,10 +94,13 @@ public class Listener {
             return ra!=null ? ra.toString() : null;
         }
 
-        public void dump(String prefix, PrintWriter ps) {
+        @Override
+		public void dump(String prefix, PrintWriter ps) {
             // best effort at showing where it is/was listening
             String peer = this.peer;
-            if (peer==null)  peer=getRemoteAddress(socket);
+            if (peer==null) {
+				peer=getRemoteAddress(socket);
+			}
 
             ps.println(prefix+"socket to "+peer+" by thread:"+threadName+" on "+new Date(time));
             super.dump(prefix,ps);
@@ -118,10 +124,13 @@ public class Listener {
             return la!=null ? la.toString() : null;
         }
 
-        public void dump(String prefix, PrintWriter ps) {
+        @Override
+		public void dump(String prefix, PrintWriter ps) {
             // best effort at showing where it is/was listening
             String address = this.address;
-            if (address==null)  address=getLocalAddress(socket);
+            if (address==null) {
+				address=getLocalAddress(socket);
+			}
 
             ps.println(prefix+"server socket at "+address+" by thread:"+threadName+" on "+new Date(time));
             super.dump(prefix,ps);
@@ -138,7 +147,8 @@ public class Listener {
             this.socket = socket;
         }
 
-        public void dump(String prefix, PrintWriter ps) {
+        @Override
+		public void dump(String prefix, PrintWriter ps) {
             ps.println(prefix+"socket channel by thread:"+threadName+" on "+new Date(time));
             super.dump(prefix,ps);
         }
@@ -208,11 +218,13 @@ public class Listener {
                 // one of the following must be true
                 SocketImpl si = (SocketImpl) _this;
                 Socket s = (Socket)SOCKETIMPL_SOCKET.get(si);
-                if (s!=null)
-                    put(_this, new SocketRecord(s));
+                if (s!=null) {
+					put(_this, new SocketRecord(s));
+				}
                 ServerSocket ss = (ServerSocket)SOCKETIMPL_SERVER_SOCKET.get(si);
-                if (ss!=null)
-                    put(_this, new ServerSocketRecord(ss));
+                if (ss!=null) {
+					put(_this, new ServerSocketRecord(ss));
+				}
             } catch (IllegalAccessException e) {
                 throw new AssertionError(e);
             }

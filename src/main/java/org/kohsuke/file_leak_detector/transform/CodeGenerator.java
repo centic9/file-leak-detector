@@ -1,10 +1,11 @@
 package org.kohsuke.file_leak_detector.transform;
 
+import static org.kohsuke.asm3.Opcodes.*;
+
+import org.kohsuke.asm3.Label;
 import org.kohsuke.asm3.MethodAdapter;
 import org.kohsuke.asm3.MethodVisitor;
-import static org.kohsuke.asm3.Opcodes.*;
 import org.kohsuke.asm3.Type;
-import org.kohsuke.asm3.Label;
 
 /**
  * Convenience method to generate bytecode.
@@ -32,10 +33,11 @@ public class CodeGenerator extends MethodAdapter {
     }
 
     public void iconst(int i) {
-        if(i<=5)
-            super.visitInsn(ICONST_0+i);
-        else
-            super.visitLdcInsn(i);
+        if(i<=5) {
+			super.visitInsn(ICONST_0+i);
+		} else {
+			super.visitLdcInsn(i);
+		}
     }
 
     public void dup() {
@@ -55,8 +57,9 @@ public class CodeGenerator extends MethodAdapter {
     }
 
     public void ldc(Object o) {
-        if(o.getClass()==Class.class)
-            o = Type.getType((Class)o);
+        if(o.getClass()==Class.class) {
+			o = Type.getType((Class<?>)o);
+		}
         super.visitLdcInsn(o);
     }
 
@@ -84,11 +87,11 @@ public class CodeGenerator extends MethodAdapter {
 //    }
 
 
-    public void invokeAppStatic(Class userClass, String userMethodName, Class[] argTypes, int[] localIndex) {
+    public void invokeAppStatic(Class<?> userClass, String userMethodName, Class<?>[] argTypes, int[] localIndex) {
         invokeAppStatic(userClass.getName(),userMethodName,argTypes,localIndex);
     }
 
-    public void invokeAppStatic(String userClassName, String userMethodName, Class[] argTypes, int[] localIndex) {
+    public void invokeAppStatic(String userClassName, String userMethodName, Class<?>[] argTypes, int[] localIndex) {
         Label s = new Label();
         Label e = new Label();
         Label h = new Label();
@@ -101,8 +104,9 @@ public class CodeGenerator extends MethodAdapter {
         invokeVirtual("java/lang/ClassLoader","loadClass","(Ljava/lang/String;)Ljava/lang/Class;");
         ldc(userMethodName);
         newArray("java/lang/Class",argTypes.length);
-        for (int i = 0; i < argTypes.length; i++)
-            storeConst(i, argTypes[i]);
+        for (int i = 0; i < argTypes.length; i++) {
+			storeConst(i, argTypes[i]);
+		}
 
         invokeVirtual("java/lang/Class","getDeclaredMethod","(Ljava/lang/String;[Ljava/lang/Class;)Ljava/lang/reflect/Method;");
 
