@@ -86,6 +86,14 @@ public class AgentMain {
                     		Listener.EXCLUDES.add(str);
                     	}
                     }
+                } else
+                if(t.equals("dumpatshutdown")) {
+                	Runtime.getRuntime().addShutdownHook(new Thread("File handles dumping shutdown hook") {
+						@Override
+						public void run() {
+							Listener.dump(System.err);
+						}
+                	});
                 } else {
                     System.err.println("Unknown option: "+t);
                     usageAndQuit();
@@ -180,6 +188,7 @@ public class AgentMain {
         System.err.println("  strong        - Don't let GC auto-close leaking file descriptors");
         System.err.println("  excludes=File - Exclude any opened file where a line in the given exclude-file matches");
         System.err.println("                  one of the lines from the stacktrace of the open-call.");
+        System.err.println("  dumpatshutdown- Don't let GC auto-close leaking file descriptors");
     }
 
     static List<ClassTransformSpec> createSpec() {
