@@ -1,30 +1,30 @@
 package org.kohsuke.file_leak_detector;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.io.RandomAccessFile;
 import java.io.Writer;
 import java.lang.reflect.Field;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.net.SocketAddress;
 import java.net.SocketImpl;
+import java.nio.channels.SocketChannel;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Date;
-import java.net.Socket;
-import java.net.ServerSocket;
-import java.nio.channels.SocketChannel;
 import java.util.WeakHashMap;
 import java.util.zip.ZipFile;
 
 /**
  * Intercepted JDK calls land here.
- * 
+ *
  * @author Kohsuke Kawaguchi
  */
 public class Listener {
@@ -68,7 +68,8 @@ public class Listener {
             this.file = file;
         }
 
-        public void dump(String prefix, PrintWriter pw) {
+        @Override
+		public void dump(String prefix, PrintWriter pw) {
             pw.println(prefix + file + " by thread:" + threadName + " on " + new Date(time));
             super.dump(prefix,pw);
         }
@@ -91,7 +92,8 @@ public class Listener {
             return ra!=null ? ra.toString() : null;
         }
 
-        public void dump(String prefix, PrintWriter ps) {
+        @Override
+		public void dump(String prefix, PrintWriter ps) {
             // best effort at showing where it is/was listening
             String peer = this.peer;
             if (peer==null)  peer=getRemoteAddress(socket);
@@ -118,7 +120,8 @@ public class Listener {
             return la!=null ? la.toString() : null;
         }
 
-        public void dump(String prefix, PrintWriter ps) {
+        @Override
+		public void dump(String prefix, PrintWriter ps) {
             // best effort at showing where it is/was listening
             String address = this.address;
             if (address==null)  address=getLocalAddress(socket);
@@ -138,7 +141,8 @@ public class Listener {
             this.socket = socket;
         }
 
-        public void dump(String prefix, PrintWriter ps) {
+        @Override
+		public void dump(String prefix, PrintWriter ps) {
             ps.println(prefix+"socket channel by thread:"+threadName+" on "+new Date(time));
             super.dump(prefix,ps);
         }
@@ -171,6 +175,38 @@ public class Listener {
     public static int THRESHOLD = 999999;
 
     /**
+     * Filter on strings
+     */
+    public static String[] FILTER_EXCLUDES = new String[] {
+    	"C:\\devtools\\jdk1.7.0_25_x64\\jre\\lib",
+    	"C:\\Windows\\Fonts",
+
+    	"jloadtrace\\server\\repository\\dynaTrace5\\tmp",
+    	"jloadtrace\\server\\repository\\dynaTrace5\\log",
+    	"jloadtrace\\server\\repository\\dynaTrace5\\seg0",
+    	"jloadtrace\\server\\repository\\dynaTrace5\\db.lck",
+    	"jloadtrace\\server\\conf\\plugins\\com.dynatrace.diagnostics.plugins.WebTransactionMonitor_",
+
+    	"jloadtrace\\plugins",
+    	"jloadtrace\\server\\plugins",
+    	"jloadtrace\\server\\osgi.eclipse\\org.eclipse.osgi\\bundles",
+    	"jloadtrace\\server\\osgi.eclipse\\org.eclipse.equinox.app\\.manager",
+
+    	"prod\\third-party\\org.apache.commons\\lib",
+    	"prod\\tools\\obfuscation\\Obfuscation\\lib",
+    	"prod\\java\\com.dynatrace.diagnostics.util\\lib",
+    	"prod\\java\\com.dynatrace.diagnostics.server\\lib",
+    	"prod\\java\\com.dynatrace.diagnostics.collector\\lib",
+    	"prod\\java\\com.dynatrace.diagnostics.repository\\lib",
+    	"prod\\java\\com.dynatrace.diagnostics.report.velocity\\lib",
+    	"prod\\java\\com.dynatrace.diagnostics.report.excel\\lib",
+
+    	// XMLGraphics does not close the stream...
+    	"prod\\java\\com.dynatrace.diagnostics.webservices\\META-INF\\MANIFEST.MF",
+    	"prod\\java\\com.dynatrace.diagnostics.report.velocity\\META-INF\\MANIFEST.MF",
+    };
+
+    /**
      * Is the agent actually transforming the class files?
      */
     /*package*/ static boolean AGENT_INSTALLED = false;
@@ -181,7 +217,7 @@ public class Listener {
     public static boolean isAgentInstalled() {
         return AGENT_INSTALLED;
     }
-    
+
     public static synchronized void makeStrong() {
         TABLE = new LinkedHashMap<Object, Record>(TABLE);
     }
@@ -221,12 +257,25 @@ public class Listener {
             put(_this, new SocketChannelRecord((SocketChannel) _this));
         }
     }
-    
+
     public static synchronized List<Record> getCurrentOpenFiles() {
         return new ArrayList<Record>(TABLE.values());
     }
-    
+
     private static synchronized void put(Object _this, Record r) {
+    	if(r instanceof FileRecord) {
+            if(TRACE!=null && !tracing) {
+                tracing = true;
+                r.dump("Excluded ",TRACE);
+                tracing = false;
+            }
+
+            for(String exclude : FILTER_EXCLUDES) {
+	            if(((FileRecord)r).file.getAbsolutePath().contains(exclude)) {
+	    			return;
+	    		}
+            }
+    	}
         TABLE.put(_this, r);
         if(TABLE.size()>THRESHOLD) {
             THRESHOLD=999999;
@@ -285,9 +334,9 @@ public class Listener {
             tracing = false;
         }
     }
-    
+
     private static Field SOCKETIMPL_SOCKET,SOCKETIMPL_SERVER_SOCKET;
-    
+
     static {
         try {
             SOCKETIMPL_SOCKET = SocketImpl.class.getDeclaredField("socket");
