@@ -38,10 +38,10 @@ public class AgentMain {
     public static void agentmain(String agentArguments, Instrumentation instrumentation) throws Exception {
         premain(agentArguments,instrumentation);
     }
-    
+
     public static void premain(String agentArguments, Instrumentation instrumentation) throws Exception {
         int serverPort = -1;
-        
+
         if(agentArguments!=null) {
             for (String t : agentArguments.split(",")) {
                 if(t.equals("help")) {
@@ -77,7 +77,7 @@ public class AgentMain {
                     } finally {
                     	reader.close();
                     }
-                    
+
                     // add the entries from the excludes-file, but filter out empty ones
                     Iterator<String> it = lines.iterator();
                     while(it.hasNext()) {
@@ -104,13 +104,14 @@ public class AgentMain {
         System.err.println("File leak detector installed");
         Listener.AGENT_INSTALLED = true;
         instrumentation.addTransformer(new TransformerImpl(createSpec()),true);
-        
+
         instrumentation.retransformClasses(
                 FileInputStream.class,
                 FileOutputStream.class,
                 RandomAccessFile.class,
                 Class.forName("java.net.PlainSocketImpl"),
-                ZipFile.class);
+                ZipFile.class/*,
+                FileChannel.class*/);
 
         if (serverPort>=0) {
 			runHttpServer(serverPort);
@@ -142,7 +143,7 @@ public class AgentMain {
                     es.submit(new Callable<Object>() {
                         public Object call() throws Exception {
                         	HTTPSession session = new HTTPSession(s) {
-								
+
 								@Override
 								public InputStream serve() {
 									ByteArrayOutputStream out = new ByteArrayOutputStream();
@@ -155,7 +156,7 @@ public class AgentMain {
 									} catch (IOException e) {
 										e.printStackTrace();
 									}
-									
+
 									return new ByteArrayInputStream(out.toByteArray());
 								}
                         	};
@@ -197,6 +198,14 @@ public class AgentMain {
             newSpec(FileInputStream.class, "(Ljava/io/File;)V"),
             newSpec(RandomAccessFile.class, "(Ljava/io/File;Ljava/lang/String;)V"),
             newSpec(ZipFile.class, "(Ljava/io/File;I)V"),
+
+            /**
+             * Intercept FileChannel for Java NIO
+             */
+            /*new ClassTransformSpec("java/nio/channels/FileChannel",
+                    new OpenSocketInterceptor("open", "(Ljava/lang/String;Ljava/util/Set;java/nio/file/attribute/FileAttribute[])java/nio/channels/FileChannel"),
+                    new CloseInterceptor("close")
+            ),*/
 
             /*
                 java.net.Socket/ServerSocket uses SocketImpl, and this is where FileDescriptors
@@ -250,7 +259,7 @@ public class AgentMain {
         public CloseInterceptor(String methodName) {
             super(methodName, "()V");
         }
-        
+
         @Override
 		protected void append(CodeGenerator g) {
             g.invokeAppStatic(Listener.class,"close",
@@ -332,7 +341,7 @@ public class AgentMain {
          * Decide if this is the method that needs interception.
          */
         protected abstract boolean toIntercept(String owner, String name);
-        
+
         protected Class<? extends Exception> getExpectedException() {
             return IOException.class;
         }
@@ -341,7 +350,7 @@ public class AgentMain {
         public void visitMethodInsn(int opcode, String owner, String name, String desc) {
             if(toIntercept(owner,name)) {
                 Type exceptionType = Type.getType(getExpectedException());
-                
+
                 CodeGenerator g = new CodeGenerator(mv);
                 Label s = new Label(); // start of the try block
                 Label e = new Label();  // end of the try block
