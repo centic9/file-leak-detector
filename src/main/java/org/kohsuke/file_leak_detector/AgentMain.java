@@ -44,10 +44,10 @@ public class AgentMain {
     public static void agentmain(String agentArguments, Instrumentation instrumentation) throws Exception {
         premain(agentArguments,instrumentation);
     }
-    
+
     public static void premain(String agentArguments, Instrumentation instrumentation) throws Exception {
         int serverPort = -1;
-        
+
         if(agentArguments!=null) {
             for (String t : agentArguments.split(",")) {
                 if(t.equals("help")) {
@@ -110,13 +110,14 @@ public class AgentMain {
         System.err.println("File leak detector installed");
         Listener.AGENT_INSTALLED = true;
         instrumentation.addTransformer(new TransformerImpl(createSpec()),true);
-        
+
         instrumentation.retransformClasses(
                 FileInputStream.class,
                 FileOutputStream.class,
                 RandomAccessFile.class,
                 Class.forName("java.net.PlainSocketImpl"),
-                ZipFile.class);
+                ZipFile.class/*,
+                FileChannel.class*/);
 
         if (serverPort>=0)
             runHttpServer(serverPort);
@@ -194,6 +195,14 @@ public class AgentMain {
             newSpec(RandomAccessFile.class, "(Ljava/io/File;Ljava/lang/String;)V"),
             newSpec(ZipFile.class, "(Ljava/io/File;I)V"),
 
+            /**
+             * Intercept FileChannel for Java NIO
+             */
+            /*new ClassTransformSpec("java/nio/channels/FileChannel",
+                    new OpenSocketInterceptor("open", "(Ljava/lang/String;Ljava/util/Set;java/nio/file/attribute/FileAttribute[])java/nio/channels/FileChannel"),
+                    new CloseInterceptor("close")
+            ),*/
+
             /*
                 java.net.Socket/ServerSocket uses SocketImpl, and this is where FileDescriptors
                 are actually managed.
@@ -246,8 +255,9 @@ public class AgentMain {
         public CloseInterceptor(String methodName) {
             super(methodName, "()V");
         }
-        
-        protected void append(CodeGenerator g) {
+
+        @Override
+		protected void append(CodeGenerator g) {
             g.invokeAppStatic(Listener.class,"close",
                     new Class[]{Object.class},
                     new int[]{0});
@@ -325,7 +335,7 @@ public class AgentMain {
          * Decide if this is the method that needs interception.
          */
         protected abstract boolean toIntercept(String owner, String name);
-        
+
         protected Class<? extends Exception> getExpectedException() {
             return IOException.class;
         }
@@ -334,7 +344,7 @@ public class AgentMain {
         public void visitMethodInsn(int opcode, String owner, String name, String desc, boolean itf) {
             if(toIntercept(owner,name)) {
                 Type exceptionType = Type.getType(getExpectedException());
-                
+
                 CodeGenerator g = new CodeGenerator(mv);
                 Label s = new Label(); // start of the try block
                 Label e = new Label();  // end of the try block
