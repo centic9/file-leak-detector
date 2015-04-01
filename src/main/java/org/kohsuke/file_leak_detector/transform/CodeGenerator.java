@@ -96,7 +96,6 @@ public class CodeGenerator extends MethodVisitor {
     	// remember the return value for ARETURN if necessary
     	if(retValueIndex != -1) {
 			astore(retValueIndex);
-			aload(retValueIndex);
         }
 
         Label s = new Label();
@@ -150,6 +149,11 @@ public class CodeGenerator extends MethodVisitor {
         invokeVirtual("java/lang/Exception","printStackTrace","(Ljava/io/PrintStream;)V");
 
         visitLabel(tail);
+        
+        // ensure ARETURN has the correct value again
+        if(retValueIndex != -1) {
+			aload(retValueIndex);
+        }
     }
 
     /**
