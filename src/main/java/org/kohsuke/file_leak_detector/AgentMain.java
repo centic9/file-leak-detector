@@ -231,6 +231,24 @@ public class AgentMain {
                     new OpenSocketInterceptor("<init>", "(Ljava/nio/channels/spi/SelectorProvider;)V"),
                     new CloseInterceptor("kill")
             )
+            //new ClassTransformSpec("sun/nio/fs/WindowsChannelFactory")
+            /*new ClassTransformSpec("sun.nio.fs.WindowsChannelFactory",
+                    new OpenSocketInterceptor("<init>", "(Ljava/nio/channels/spi/SelectorProvider;)V"),
+                    new CloseInterceptor("kill");
+            /*new
+            private static FileDescriptor  [More ...] open(String pathForWindows,
+
+            		220
+
+            		                                       String pathToCheck,
+
+            		221
+
+            		                                       Flags flags,
+
+            		222
+
+            		                                       long pSecurityDescriptor)*/
         );
     }
 

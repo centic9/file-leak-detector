@@ -14,7 +14,7 @@ import java.util.concurrent.Executors;
 public class SocketDemo {
     public static void main(String[] args) throws IOException {
         final ExecutorService es = Executors.newCachedThreadPool();
-        
+
         final ServerSocket ss = new ServerSocket();
         ss.bind(new InetSocketAddress("localhost",0));
 
@@ -33,7 +33,10 @@ public class SocketDemo {
                 }
             }
         });
-        
+
+        System.out.println("Dumping the table before");
+        Listener.dump(System.out);
+
         for (int i=0; i<10; i++) {
             int dst = ss.getLocalPort();
             Socket s = new Socket("localhost",dst);
@@ -41,8 +44,8 @@ public class SocketDemo {
 //            s.shutdownInput();
 //            s.shutdownOutput();
         }
-        
-        System.out.println("Dumping the table");
+
+        System.out.println("Dumping the table after");
         Listener.dump(System.out);
 
         System.out.println("done");
