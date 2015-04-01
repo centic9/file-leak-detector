@@ -1,25 +1,8 @@
 package org.kohsuke.file_leak_detector;
 
-import org.kohsuke.asm5.Label;
-import org.kohsuke.asm5.MethodVisitor;
-import org.kohsuke.asm5.Type;
-import org.kohsuke.asm5.commons.LocalVariablesSorter;
-import org.kohsuke.file_leak_detector.transform.ClassTransformSpec;
-import org.kohsuke.file_leak_detector.transform.CodeGenerator;
-import org.kohsuke.file_leak_detector.transform.MethodAppender;
-import org.kohsuke.file_leak_detector.transform.TransformerImpl;
+import static org.kohsuke.asm5.Opcodes.*;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileReader;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
-import java.io.PrintWriter;
-import java.io.RandomAccessFile;
+import java.io.*;
 import java.lang.instrument.Instrumentation;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
@@ -33,7 +16,14 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.zip.ZipFile;
 
-import static org.kohsuke.asm5.Opcodes.*;
+import org.kohsuke.asm5.Label;
+import org.kohsuke.asm5.MethodVisitor;
+import org.kohsuke.asm5.Type;
+import org.kohsuke.asm5.commons.LocalVariablesSorter;
+import org.kohsuke.file_leak_detector.transform.ClassTransformSpec;
+import org.kohsuke.file_leak_detector.transform.CodeGenerator;
+import org.kohsuke.file_leak_detector.transform.MethodAppender;
+import org.kohsuke.file_leak_detector.transform.TransformerImpl;
 
 /**
  * Java agent that instruments JDK classes to keep track of where file descriptors are opened.
@@ -44,10 +34,10 @@ public class AgentMain {
     public static void agentmain(String agentArguments, Instrumentation instrumentation) throws Exception {
         premain(agentArguments,instrumentation);
     }
-    
+
     public static void premain(String agentArguments, Instrumentation instrumentation) throws Exception {
         int serverPort = -1;
-        
+
         if(agentArguments!=null) {
             for (String t : agentArguments.split(",")) {
                 if(t.equals("help")) {
@@ -107,10 +97,17 @@ public class AgentMain {
             }
         }
 
+        // we have to ensure that ActivityListener is instantiated
+        // here, it seems newer Java versions optimize away the loading
+        // if no listener=... is specified and thus the Listener.open()
+        // call tries to load the code and runs into an endless loop until
+        // stack overflow...
+        ActivityListener.LIST.isEmpty();
+
         System.err.println("File leak detector installed");
         Listener.AGENT_INSTALLED = true;
         instrumentation.addTransformer(new TransformerImpl(createSpec()),true);
-        
+
         instrumentation.retransformClasses(
                 FileInputStream.class,
                 FileOutputStream.class,
@@ -246,8 +243,9 @@ public class AgentMain {
         public CloseInterceptor(String methodName) {
             super(methodName, "()V");
         }
-        
-        protected void append(CodeGenerator g) {
+
+        @Override
+		protected void append(CodeGenerator g) {
             g.invokeAppStatic(Listener.class,"close",
                     new Class[]{Object.class},
                     new int[]{0});
@@ -270,7 +268,8 @@ public class AgentMain {
             };
         }
 
-        protected void append(CodeGenerator g) {
+        @Override
+		protected void append(CodeGenerator g) {
             g.invokeAppStatic(Listener.class,"openSocket",
                     new Class[]{Object.class},
                     new int[]{0});
@@ -296,7 +295,8 @@ public class AgentMain {
             };
         }
 
-        protected void append(CodeGenerator g) {
+        @Override
+		protected void append(CodeGenerator g) {
             // the 's' parameter is the new socket that will own the socket
             g.invokeAppStatic(Listener.class,"openSocket",
                     new Class[]{Object.class},
@@ -325,7 +325,7 @@ public class AgentMain {
          * Decide if this is the method that needs interception.
          */
         protected abstract boolean toIntercept(String owner, String name);
-        
+
         protected Class<? extends Exception> getExpectedException() {
             return IOException.class;
         }
@@ -334,7 +334,7 @@ public class AgentMain {
         public void visitMethodInsn(int opcode, String owner, String name, String desc, boolean itf) {
             if(toIntercept(owner,name)) {
                 Type exceptionType = Type.getType(getExpectedException());
-                
+
                 CodeGenerator g = new CodeGenerator(mv);
                 Label s = new Label(); // start of the try block
                 Label e = new Label();  // end of the try block
@@ -409,7 +409,8 @@ public class AgentMain {
             };
         }
 
-        protected void append(CodeGenerator g) {
+        @Override
+		protected void append(CodeGenerator g) {
             g.invokeAppStatic(Listener.class,"open",
                     new Class[]{Object.class, File.class},
                     new int[]{0,1});
