@@ -25,7 +25,7 @@ public abstract class MethodAppender extends MethodTransformSpec {
         return new MethodVisitor(ASM5,base) {
             @Override
             public void visitInsn(int opcode) {
-                if(opcode==RETURN)
+                if(opcode==RETURN || opcode==ARETURN)
                     append(cg);
                 super.visitInsn(opcode);
             }

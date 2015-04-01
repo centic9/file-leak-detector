@@ -11,6 +11,7 @@ import java.io.Writer;
 import java.lang.reflect.Field;
 import java.net.SocketAddress;
 import java.net.SocketImpl;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -98,7 +99,7 @@ public class Listener {
             this.file = file;
         }
 
-        public void dump(String prefix, PrintWriter pw) {
+		public void dump(String prefix, PrintWriter pw) {
             pw.println(prefix + file + " by thread:" + threadName + " on " + format(time));
             super.dump(prefix,pw);
         }
@@ -121,7 +122,7 @@ public class Listener {
             return ra!=null ? ra.toString() : null;
         }
 
-        public void dump(String prefix, PrintWriter ps) {
+		public void dump(String prefix, PrintWriter ps) {
             // best effort at showing where it is/was listening
             String peer = this.peer;
             if (peer==null)  peer=getRemoteAddress(socket);
@@ -148,7 +149,7 @@ public class Listener {
             return la!=null ? la.toString() : null;
         }
 
-        public void dump(String prefix, PrintWriter ps) {
+		public void dump(String prefix, PrintWriter ps) {
             // best effort at showing where it is/was listening
             String address = this.address;
             if (address==null)  address=getLocalAddress(socket);
@@ -168,7 +169,7 @@ public class Listener {
             this.socket = socket;
         }
 
-        public void dump(String prefix, PrintWriter ps) {
+		public void dump(String prefix, PrintWriter ps) {
             ps.println(prefix+"socket channel by thread:"+threadName+" on "+format(time));
             super.dump(prefix,ps);
         }
@@ -234,6 +235,22 @@ public class Listener {
 
         for (ActivityListener al : ActivityListener.LIST) {
             al.open(_this,f);
+        }
+    }
+
+    /**
+     * Called when a new file is opened using Java NIO.
+     *
+     * @param _this
+     *      {@link FileChannelImpl}.
+     * @param p
+     *      Path being opened.
+     */
+    public static synchronized void open(Object _this, Path p) {
+        put(_this, new FileRecord(p.toFile()));
+
+        for (ActivityListener al : ActivityListener.LIST) {
+            al.open(_this,p.toFile());
         }
     }
 

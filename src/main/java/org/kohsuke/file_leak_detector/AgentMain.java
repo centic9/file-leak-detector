@@ -8,6 +8,8 @@ import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketImpl;
+import java.nio.channels.FileChannel;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -113,7 +115,8 @@ public class AgentMain {
                 FileOutputStream.class,
                 RandomAccessFile.class,
                 Class.forName("java.net.PlainSocketImpl"),
-                ZipFile.class);
+                ZipFile.class,
+                FileChannel.class);
 
         if (serverPort>=0)
             runHttpServer(serverPort);
@@ -191,6 +194,13 @@ public class AgentMain {
             newSpec(RandomAccessFile.class, "(Ljava/io/File;Ljava/lang/String;)V"),
             newSpec(ZipFile.class, "(Ljava/io/File;I)V"),
 
+            new ClassTransformSpec(FileChannel.class,
+            		new OpenFileChannelInterceptor("open", "(Ljava/nio/file/Path;Ljava/util/Set;[Ljava/nio/file/attribute/FileAttribute;)Ljava/nio/channels/FileChannel;"),
+            		//new OpenFileChannelInterceptor("open", "(Ljava/nio/file/Path;[Ljava/nio/file/OpenOption;)Ljava/nio/channels/FileChannel;"),
+            		//new OpenFileChannelInterceptor("<init>", "()V"),
+            		new CloseInterceptor("close")
+            		),
+
             /*
                 java.net.Socket/ServerSocket uses SocketImpl, and this is where FileDescriptors
                 are actually managed.
@@ -249,6 +259,37 @@ public class AgentMain {
             g.invokeAppStatic(Listener.class,"close",
                     new Class[]{Object.class},
                     new int[]{0});
+        }
+    }
+
+    private static class OpenFileChannelInterceptor extends MethodAppender {
+        public OpenFileChannelInterceptor(String name, String desc) {
+            super(name,desc);
+        }
+
+        @Override
+        public MethodVisitor newAdapter(MethodVisitor base, int access, String name, String desc, String signature, String[] exceptions) {
+            final MethodVisitor b = super.newAdapter(base, access, name, desc, signature, exceptions);
+            return new OpenInterceptionAdapter(b,access,desc) {
+                @Override
+                protected boolean toIntercept(String owner, String name) {
+                    return /*owner.equals(name) &&*/ name.startsWith("newFileChannel");
+                }
+
+                @Override
+                protected Class<? extends Exception> getExpectedException() {
+                    return FileNotFoundException.class;
+                }
+            };
+        }
+
+        @Override
+		protected void append(CodeGenerator g) {
+            g.invokeAppStatic(Listener.class.getName(),"open",
+                    new Class[]{Object.class, Path.class},
+                    new int[]{-1,0},
+                    // store return value from ARETURN locally in var 4
+                    4);
         }
     }
 

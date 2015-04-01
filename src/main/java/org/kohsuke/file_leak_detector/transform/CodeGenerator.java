@@ -46,6 +46,10 @@ public class CodeGenerator extends MethodVisitor {
         super.visitInsn(AASTORE);
     }
 
+    public void astore(int i) {
+        super.visitIntInsn(ASTORE,i);
+    }
+
     public void aload(int i) {
         super.visitIntInsn(ALOAD,i);
     }
@@ -85,10 +89,16 @@ public class CodeGenerator extends MethodVisitor {
 
 
     public void invokeAppStatic(Class userClass, String userMethodName, Class[] argTypes, int[] localIndex) {
-        invokeAppStatic(userClass.getName(),userMethodName,argTypes,localIndex);
+        invokeAppStatic(userClass.getName(),userMethodName,argTypes,localIndex, -1);
     }
 
-    public void invokeAppStatic(String userClassName, String userMethodName, Class[] argTypes, int[] localIndex) {
+    public void invokeAppStatic(String userClassName, String userMethodName, Class[] argTypes, int[] localIndex, int retValueIndex) {
+    	// remember the return value for ARETURN if necessary
+    	if(retValueIndex != -1) {
+			astore(retValueIndex);
+			aload(retValueIndex);
+        }
+
         Label s = new Label();
         Label e = new Label();
         Label h = new Label();
@@ -108,13 +118,24 @@ public class CodeGenerator extends MethodVisitor {
 
         // [RESULT] m.invoke(null,new Object[]{this,file})
         _null();
-        newArray("java/lang/Object",argTypes.length);
+        newArray("java/lang/Object",localIndex.length);
+
+        // store the value for ARETURN if necessary
+        if(retValueIndex != -1) {
+            dup();
+            iconst(0);
+            aload(retValueIndex);
+            aastore();
+        }
 
         for (int i = 0; i < localIndex.length; i++) {
-            dup();
-            iconst(i);
-            aload(localIndex[i]);
-            aastore();
+			// reserve the first element for the ARETURN value
+        	if(i != 0 || retValueIndex == -1) {
+	            dup();
+	            iconst(i);
+	            aload(localIndex[i]);
+	            aastore();
+        	}
         }
 
         visitMethodInsn(INVOKEVIRTUAL, "java/lang/reflect/Method", "invoke", "(Ljava/lang/Object;[Ljava/lang/Object;)Ljava/lang/Object;");
