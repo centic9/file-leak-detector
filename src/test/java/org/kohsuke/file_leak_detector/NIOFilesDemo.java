@@ -1,7 +1,5 @@
 package org.kohsuke.file_leak_detector;
 
-import static org.junit.Assert.assertNotNull;
-
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -15,13 +13,13 @@ import java.nio.file.Paths;
 public class NIOFilesDemo {
     public static void main(String[] args) throws IOException {
     	// unclosed element on purpose here
-    	@SuppressWarnings("resource")
+    	@SuppressWarnings({ "resource", "unused" })
 		BufferedReader reader = Files.newBufferedReader(Paths.get("pom.xml"), Charset.defaultCharset());
-    	assertNotNull(reader);
+    	//assertNotNull(reader);
 
-    	@SuppressWarnings("resource")
+    	@SuppressWarnings({ "resource", "unused" })
 		InputStream stream = Files.newInputStream(Paths.get("pom.xml"));
-    	assertNotNull(stream);
+    	//assertNotNull(stream);
 
     	System.out.println("Should have 2 unclosed files now...");
     }
