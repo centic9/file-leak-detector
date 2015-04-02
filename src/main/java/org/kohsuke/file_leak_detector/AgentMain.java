@@ -10,6 +10,7 @@ import java.net.Socket;
 import java.net.SocketImpl;
 import java.nio.channels.FileChannel;
 import java.nio.channels.spi.AbstractInterruptibleChannel;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
@@ -118,7 +119,8 @@ public class AgentMain {
                 Class.forName("java.net.PlainSocketImpl"),
                 ZipFile.class,
                 FileChannel.class,
-                AbstractInterruptibleChannel.class);
+                AbstractInterruptibleChannel.class,
+                Files.class);
 
         if (serverPort>=0)
             runHttpServer(serverPort);
@@ -197,13 +199,21 @@ public class AgentMain {
             newSpec(ZipFile.class, "(Ljava/io/File;I)V"),
 
             new ClassTransformSpec(FileChannel.class,
-            		new OpenFileChannelInterceptor("open", "(Ljava/nio/file/Path;Ljava/util/Set;[Ljava/nio/file/attribute/FileAttribute;)Ljava/nio/channels/FileChannel;")
+            		new OpenFileChannelInterceptor("open", "(Ljava/nio/file/Path;Ljava/util/Set;[Ljava/nio/file/attribute/FileAttribute;)Ljava/nio/channels/FileChannel;", 4)
             ),
             // the close of the FileChannel is actually in an abstract base class
             new ClassTransformSpec(AbstractInterruptibleChannel.class,
             		new CloseInterceptor("close")
             ),
-            		
+            new ClassTransformSpec(Files.class,
+            		// handled by newByteChannel: new OpenFileChannelInterceptor("newInputStream", "(Ljava/nio/file/Path;[Ljava/nio/file/OpenOption;)Ljava/io/InputStream;", 1),
+            		new OpenFileChannelInterceptor("newOutputStream", "(Ljava/nio/file/Path;[Ljava/nio/file/OpenOption;)Ljava/io/OutputStream;", 1),
+            		new OpenFileChannelInterceptor("newByteChannel", "(Ljava/nio/file/Path;Ljava/util/Set;[Ljava/nio/file/attribute/FileAttribute;)Ljava/nio/channels/SeekableByteChannel;", 1),
+            		// TODO There is no local variable 1 here, need to rework CodeGenerator to create one in this case... 
+            		// new OpenFileChannelInterceptor("newDirectoryStream", "(Ljava/nio/file/Path;)Ljava/nio/file/DirectoryStream;", 1)
+            		new OpenFileChannelInterceptor("newDirectoryStream", "(Ljava/nio/file/Path;Ljava/lang/String;)Ljava/nio/file/DirectoryStream;", 1),
+            		new OpenFileChannelInterceptor("newDirectoryStream", "(Ljava/nio/file/Path;Ljava/nio/file/DirectoryStream.Filter;)Ljava/nio/file/DirectoryStream;", 1)
+            ),
 
             /*
                 java.net.Socket/ServerSocket uses SocketImpl, and this is where FileDescriptors
@@ -267,8 +277,12 @@ public class AgentMain {
     }
 
     private static class OpenFileChannelInterceptor extends MethodAppender {
-        public OpenFileChannelInterceptor(String name, String desc) {
+    	private final int retValueIndex;
+    	
+        public OpenFileChannelInterceptor(String name, String desc, int retValueIndex) {
             super(name,desc);
+            
+            this.retValueIndex = retValueIndex;
         }
 
         @Override
@@ -293,7 +307,7 @@ public class AgentMain {
                     new Class[]{Object.class, Path.class},
                     new int[]{-1,0},
                     // store return value from ARETURN locally in var 4
-                    4);
+                    retValueIndex);
         }
     }
 
