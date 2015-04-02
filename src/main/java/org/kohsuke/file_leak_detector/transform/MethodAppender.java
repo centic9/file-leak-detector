@@ -21,11 +21,24 @@ public abstract class MethodAppender extends MethodTransformSpec {
 
     @Override
     public MethodVisitor newAdapter(MethodVisitor base, int access, String name, String desc, String signature, String[] exceptions) {
-        final CodeGenerator cg = new CodeGenerator(base);
+        final CodeGenerator cg = new CodeGeneratorImpl(base);
         return new MethodVisitor(ASM5,base) {
             @Override
             public void visitInsn(int opcode) {
-                if(opcode==RETURN || opcode==ARETURN)
+                if(opcode==RETURN)
+                    append(cg);
+                super.visitInsn(opcode);
+            }
+        };
+    }
+
+    @Override
+    public MethodVisitor newAdapterWithReturn(MethodVisitor base, int access, String name, String desc, String signature, String[] exceptions, Class<?> returnType) {
+        final CodeGeneratorWithReturn cg = new CodeGeneratorWithReturn(desc, new CodeGeneratorImpl(base), returnType);
+        return new MethodVisitor(ASM5,base) {
+            @Override
+            public void visitInsn(int opcode) {
+                if(opcode==ARETURN)
                     append(cg);
                 super.visitInsn(opcode);
             }

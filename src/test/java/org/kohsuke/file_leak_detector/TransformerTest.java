@@ -1,5 +1,12 @@
 package org.kohsuke.file_leak_detector;
 
+import static org.junit.Assert.assertTrue;
+
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.util.ArrayList;
+import java.util.List;
+
 import org.apache.commons.io.IOUtils;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -9,11 +16,6 @@ import org.kohsuke.asm5.ClassReader;
 import org.kohsuke.asm5.util.CheckClassAdapter;
 import org.kohsuke.file_leak_detector.transform.ClassTransformSpec;
 import org.kohsuke.file_leak_detector.transform.TransformerImpl;
-
-import java.io.PrintWriter;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.zip.ZipFile;
 
 /**
  * @author Kohsuke Kawaguchi
@@ -42,7 +44,11 @@ public class TransformerTest {
 //        o.write(data2);
 //        o.close();
 
-        CheckClassAdapter.verify(new ClassReader(data2), false, new PrintWriter(System.err));
+        StringWriter sw = new StringWriter();
+        PrintWriter pw = new PrintWriter(sw);
+        CheckClassAdapter.verify(new ClassReader(data2), false, pw);
+        System.err.print(sw.toString());
+        assertTrue(sw.toString(), sw.toString().length()==0);
     }
     
     @Parameters

@@ -9,7 +9,10 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketImpl;
 import java.nio.channels.FileChannel;
+import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.spi.AbstractInterruptibleChannel;
+import java.nio.file.DirectoryStream;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
@@ -25,6 +28,7 @@ import org.kohsuke.asm5.Type;
 import org.kohsuke.asm5.commons.LocalVariablesSorter;
 import org.kohsuke.file_leak_detector.transform.ClassTransformSpec;
 import org.kohsuke.file_leak_detector.transform.CodeGenerator;
+import org.kohsuke.file_leak_detector.transform.CodeGeneratorImpl;
 import org.kohsuke.file_leak_detector.transform.MethodAppender;
 import org.kohsuke.file_leak_detector.transform.TransformerImpl;
 
@@ -118,7 +122,8 @@ public class AgentMain {
                 Class.forName("java.net.PlainSocketImpl"),
                 ZipFile.class,
                 FileChannel.class,
-                AbstractInterruptibleChannel.class);
+                AbstractInterruptibleChannel.class,
+                Files.class);
 
         if (serverPort>=0)
             runHttpServer(serverPort);
@@ -197,13 +202,20 @@ public class AgentMain {
             newSpec(ZipFile.class, "(Ljava/io/File;I)V"),
 
             new ClassTransformSpec(FileChannel.class,
-            		new OpenFileChannelInterceptor("open", "(Ljava/nio/file/Path;Ljava/util/Set;[Ljava/nio/file/attribute/FileAttribute;)Ljava/nio/channels/FileChannel;")
+            		new OpenFileChannelInterceptor("open", "(Ljava/nio/file/Path;Ljava/util/Set;[Ljava/nio/file/attribute/FileAttribute;)Ljava/nio/channels/FileChannel;", FileChannel.class)
             ),
             // the close of the FileChannel is actually in an abstract base class
             new ClassTransformSpec(AbstractInterruptibleChannel.class,
             		new CloseInterceptor("close")
             ),
-            		
+            new ClassTransformSpec(Files.class,
+            		// handled by newByteChannel: new OpenFileChannelInterceptor("newInputStream", "(Ljava/nio/file/Path;[Ljava/nio/file/OpenOption;)Ljava/io/InputStream;", 1),
+            		new OpenFileChannelInterceptor("newOutputStream", "(Ljava/nio/file/Path;[Ljava/nio/file/OpenOption;)Ljava/io/OutputStream;", OutputStream.class),
+            		new OpenFileChannelInterceptor("newByteChannel", "(Ljava/nio/file/Path;Ljava/util/Set;[Ljava/nio/file/attribute/FileAttribute;)Ljava/nio/channels/SeekableByteChannel;", SeekableByteChannel.class),
+            		new OpenFileChannelInterceptor("newDirectoryStream", "(Ljava/nio/file/Path;)Ljava/nio/file/DirectoryStream;", DirectoryStream.class),
+            		new OpenFileChannelInterceptor("newDirectoryStream", "(Ljava/nio/file/Path;Ljava/lang/String;)Ljava/nio/file/DirectoryStream;", DirectoryStream.class),
+            		new OpenFileChannelInterceptor("newDirectoryStream", "(Ljava/nio/file/Path;Ljava/nio/file/DirectoryStream.Filter;)Ljava/nio/file/DirectoryStream;", DirectoryStream.class)
+            ),
 
             /*
                 java.net.Socket/ServerSocket uses SocketImpl, and this is where FileDescriptors
@@ -231,24 +243,6 @@ public class AgentMain {
                     new OpenSocketInterceptor("<init>", "(Ljava/nio/channels/spi/SelectorProvider;)V"),
                     new CloseInterceptor("kill")
             )
-            //new ClassTransformSpec("sun/nio/fs/WindowsChannelFactory")
-            /*new ClassTransformSpec("sun.nio.fs.WindowsChannelFactory",
-                    new OpenSocketInterceptor("<init>", "(Ljava/nio/channels/spi/SelectorProvider;)V"),
-                    new CloseInterceptor("kill");
-            /*new
-            private static FileDescriptor  [More ...] open(String pathForWindows,
-
-            		220
-
-            		                                       String pathToCheck,
-
-            		221
-
-            		                                       Flags flags,
-
-            		222
-
-            		                                       long pSecurityDescriptor)*/
         );
     }
 
@@ -285,13 +279,16 @@ public class AgentMain {
     }
 
     private static class OpenFileChannelInterceptor extends MethodAppender {
-        public OpenFileChannelInterceptor(String name, String desc) {
+    	private final Class<?> returnType;
+    	
+        public OpenFileChannelInterceptor(String name, String desc, Class<?> returnType) {
             super(name,desc);
+            this.returnType = returnType;
         }
 
         @Override
         public MethodVisitor newAdapter(MethodVisitor base, int access, String name, String desc, String signature, String[] exceptions) {
-            final MethodVisitor b = super.newAdapter(base, access, name, desc, signature, exceptions);
+            final MethodVisitor b = super.newAdapterWithReturn(base, access, name, desc, signature, exceptions, returnType);
             return new OpenInterceptionAdapter(b,access,desc) {
                 @Override
                 protected boolean toIntercept(String owner, String name) {
@@ -309,9 +306,7 @@ public class AgentMain {
 		protected void append(CodeGenerator g) {
             g.invokeAppStatic(Listener.class.getName(),"open",
                     new Class[]{Object.class, Path.class},
-                    new int[]{-1,0},
-                    // store return value from ARETURN locally in var 4
-                    4);
+                    new int[]{0,0});
         }
     }
 
@@ -398,7 +393,7 @@ public class AgentMain {
             if(toIntercept(owner,name)) {
                 Type exceptionType = Type.getType(getExpectedException());
 
-                CodeGenerator g = new CodeGenerator(mv);
+                CodeGeneratorImpl g = new CodeGeneratorImpl(mv);
                 Label s = new Label(); // start of the try block
                 Label e = new Label();  // end of the try block
                 Label h = new Label();  // handler entry point

@@ -8,10 +8,9 @@ import java.io.IOException;
 public class FilesLinesDemo {
     public static void main(String[] args) throws IOException {
     	// unclosed element on purpose here
-    	/* Can only compile on Java 8 and newer...
-    	@SuppressWarnings("resource")
-		Stream<String> lines = Files.lines(Paths.get("pom.xml"));
-    	assertNotNull(lines);*/
+/*    	@SuppressWarnings({ "resource", "unused" })
+		Stream<String> lines = Files.lines(Paths.get("pom.xml"));*/
+    	//assertNotNull(lines);
 
     	System.out.println("Done");
     }
