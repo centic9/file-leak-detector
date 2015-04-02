@@ -9,6 +9,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketImpl;
 import java.nio.channels.FileChannel;
+import java.nio.channels.spi.AbstractInterruptibleChannel;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
@@ -116,7 +117,8 @@ public class AgentMain {
                 RandomAccessFile.class,
                 Class.forName("java.net.PlainSocketImpl"),
                 ZipFile.class,
-                FileChannel.class);
+                FileChannel.class,
+                AbstractInterruptibleChannel.class);
 
         if (serverPort>=0)
             runHttpServer(serverPort);
@@ -195,11 +197,13 @@ public class AgentMain {
             newSpec(ZipFile.class, "(Ljava/io/File;I)V"),
 
             new ClassTransformSpec(FileChannel.class,
-            		new OpenFileChannelInterceptor("open", "(Ljava/nio/file/Path;Ljava/util/Set;[Ljava/nio/file/attribute/FileAttribute;)Ljava/nio/channels/FileChannel;"),
-            		//new OpenFileChannelInterceptor("open", "(Ljava/nio/file/Path;[Ljava/nio/file/OpenOption;)Ljava/nio/channels/FileChannel;"),
-            		//new OpenFileChannelInterceptor("<init>", "()V"),
+            		new OpenFileChannelInterceptor("open", "(Ljava/nio/file/Path;Ljava/util/Set;[Ljava/nio/file/attribute/FileAttribute;)Ljava/nio/channels/FileChannel;")
+            ),
+            // the close of the FileChannel is actually in an abstract base class
+            new ClassTransformSpec(AbstractInterruptibleChannel.class,
             		new CloseInterceptor("close")
-            		),
+            ),
+            		
 
             /*
                 java.net.Socket/ServerSocket uses SocketImpl, and this is where FileDescriptors

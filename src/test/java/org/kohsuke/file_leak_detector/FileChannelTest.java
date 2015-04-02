@@ -1,7 +1,5 @@
 package org.kohsuke.file_leak_detector;
 
-import static org.junit.Assert.assertNotNull;
-
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.channels.FileChannel;
@@ -14,9 +12,10 @@ import org.kohsuke.asm5.util.TraceClassVisitor;
 public class FileChannelTest {
     public static void main(String[] args) throws IOException {
     	// unclosed element on purpose here
-    	@SuppressWarnings("resource")
+    	@SuppressWarnings({ "resource", "unused" })
     	FileChannel channel = FileChannel.open(Paths.get("pom.xml"), StandardOpenOption.READ);
-    	assertNotNull(channel);
+    	//assertNotNull(channel);
+    	//channel.close();
 
     	System.out.println("Should have 1 unclosed file now...");
 
