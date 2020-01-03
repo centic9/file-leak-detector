@@ -12,6 +12,7 @@ import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.io.RandomAccessFile;
@@ -243,11 +244,16 @@ public class AgentMain {
                     new ReturnFromStaticMethodInterceptor("open",
                             "(Ljava/nio/file/Path;Ljava/util/Set;[Ljava/nio/file/attribute/FileAttribute;)Ljava/nio/channels/FileChannel;", 4, "open_filechannel", FileChannel.class, Path.class)),
             /*
-            SeekableByteChannel newByteChannel(Path path, Set<? extends OpenOption> options, FileAttribute<?>... attrs)
+             * Class 'Files' has a number of methods which open files
              */
             new ClassTransformSpec(Files.class,
+                    // SeekableByteChannel newByteChannel(Path path, Set<? extends OpenOption> options, FileAttribute<?>... attrs)
                     new ReturnFromStaticMethodInterceptor("newByteChannel",
-                            "(Ljava/nio/file/Path;Ljava/util/Set;[Ljava/nio/file/attribute/FileAttribute;)Ljava/nio/channels/SeekableByteChannel;", 4, "open_filechannel", SeekableByteChannel.class, Path.class)),
+                            "(Ljava/nio/file/Path;Ljava/util/Set;[Ljava/nio/file/attribute/FileAttribute;)Ljava/nio/channels/SeekableByteChannel;", 4, "open_filechannel", SeekableByteChannel.class, Path.class),
+                    // OutputStream newOutputStream(Path path, OpenOption... options)
+                    new ReturnFromStaticMethodInterceptor("newOutputStream",
+                            "(Ljava/nio/file/Path;[Ljava/nio/file/OpenOption;)Ljava/io/OutputStream;", 3, "open_outputstream", OutputStream.class, Path.class)),
+            // public SeekableByteChannel newByteChannel(Path var1, Set<? extends OpenOption> var2, FileAttribute<?>... var3) throws IOException {
             /*
              * Detect new Pipes
              */

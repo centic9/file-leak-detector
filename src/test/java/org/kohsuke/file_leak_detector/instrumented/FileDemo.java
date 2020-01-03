@@ -6,11 +6,14 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.InputStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.channels.FileChannel;
 import java.nio.channels.SeekableByteChannel;
+import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 
 import org.junit.After;
@@ -88,7 +91,60 @@ public class FileDemo {
         assertTrue(traceOutput.contains("Closed " + tempFile));
     }
 
+    @Test
+    public void openCloseFilesNewInputStream() throws Exception {
+        InputStream inputStream = Files.newInputStream(tempFile.toPath(), StandardOpenOption.READ);
+        assertNotNull("No file record for file=" + tempFile + " found", findFileRecord(tempFile));
+
+        inputStream.close();
+        assertNull("File record for file=" + tempFile + " not removed", findFileRecord(tempFile));
+
+        String traceOutput = output.toString();
+        assertTrue(traceOutput.contains("Opened " + tempFile));
+        assertTrue(traceOutput.contains("Closed " + tempFile));
+    }
+
+    /* This returns a custom OutputStream where close is not instrumented...
+    @Test
+    public void openCloseFilesNewOutputStream() throws Exception {
+        OutputStream outputStream = Files.newOutputStream(tempFile.toPath(), StandardOpenOption.WRITE);
+        assertNotNull("No file record for file=" + tempFile + " found", findFileRecord(tempFile));
+
+        outputStream.close();
+        assertNull("File record for file=" + tempFile + " not removed", findFileRecord(tempFile));
+
+        String traceOutput = output.toString();
+        assertTrue(traceOutput.contains("Opened " + tempFile));
+        assertTrue(traceOutput.contains("Closed " + tempFile));
+    }*/
+
+    @Test
+    public void openCloseFilesNewDirectoryStream() throws Exception {
+        DirectoryStream<Path> stream = Files.newDirectoryStream(tempFile.toPath());
+        assertNotNull("No file record for file=" + tempFile + " found", findFileRecord(tempFile));
+
+        stream.close();
+        assertNull("File record for file=" + tempFile + " not removed", findFileRecord(tempFile));
+
+        String traceOutput = output.toString();
+        assertTrue(traceOutput.contains("Opened " + tempFile));
+        assertTrue(traceOutput.contains("Closed " + tempFile));
+    }
+
     /* This is only available in Java 8 and newer...
+    @Test
+    public void openCloseFilesNewBufferedReader() throws Exception {
+        BufferedReader reader = Files.newBufferedReader(tempFile.toPath());
+        assertNotNull("No file record for file=" + tempFile + " found", findFileRecord(tempFile));
+
+        reader.close();
+        assertNull("File record for file=" + tempFile + " not removed", findFileRecord(tempFile));
+
+        String traceOutput = output.toString();
+        assertTrue(traceOutput.contains("Opened " + tempFile));
+        assertTrue(traceOutput.contains("Closed " + tempFile));
+    }
+
     @Test
     public void openCloseFileLines() throws Exception {
         Stream<String> stream = Files.lines(tempFile.toPath());

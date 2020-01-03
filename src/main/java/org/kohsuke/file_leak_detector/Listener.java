@@ -314,6 +314,10 @@ public class Listener {
         open(byteChannel, path.toFile());
     }
 
+    public static synchronized void open_outputstream(OutputStream stream, Path path) {
+        open(stream, path.toFile());
+    }
+
     public static synchronized void openSelector(Object _this) {
         if (_this instanceof Selector) {
             put(_this, new SelectorRecord((Selector)_this));
