@@ -154,6 +154,7 @@ public class AgentMain {
         addIfFound(classes, "sun.nio.fs.UnixSecureDirectoryStream");
         addIfFound(classes, "sun.nio.fs.WindowsDirectoryStream");
         addIfFound(classes, "jdk.internal.jrtfs.JrtDirectoryStream");
+        addIfFound(classes, "jdk.nio.zipfs.ZipDirectoryStream");
 
         addIfFound(classes, "org.kohsuke.file_leak_detector.instrumented.lucene.FilterDirectoryStream");
         addIfFound(classes, "org.kohsuke.file_leak_detector.instrumented.lucene.ShuffleFS$1");
@@ -332,6 +333,7 @@ public class AgentMain {
         }
 
         spec.add(new ClassTransformSpec("jdk/internal/jrtfs/JrtDirectoryStream", new CloseInterceptor("close")));
+        spec.add(new ClassTransformSpec("jdk/nio/zipfs/ZipDirectoryStream", new CloseInterceptor("close")));
 
         // some custom file-system implementations do not work because they use wrapped DirectoryStream instances
         // thus let's try to catch the closing of those separately to not report them as leaks
