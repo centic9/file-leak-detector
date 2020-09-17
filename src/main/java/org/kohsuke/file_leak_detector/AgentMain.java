@@ -125,7 +125,7 @@ public class AgentMain {
         }
 
         Listener.EXCLUDES.add("sun.nio.ch.PipeImpl$Initializer$LoopbackConnector.run");
-        System.err.println("File leak detector installed");
+        System.err.println("File leak detector installed, " + new File(".").getAbsolutePath());
 
         // Make sure the ActivityListener is loaded to prevent recursive death in instrumentation
         ActivityListener.LIST.size();
@@ -155,6 +155,16 @@ public class AgentMain {
         addIfFound(classes, "sun.nio.fs.WindowsDirectoryStream");
         addIfFound(classes, "jdk.internal.jrtfs.JrtDirectoryStream");
         addIfFound(classes, "jdk.nio.zipfs.ZipDirectoryStream");
+
+        addIfFound(classes, "org.kohsuke.file_leak_detector.instrumented.lucene.FilterDirectoryStream");
+        addIfFound(classes, "org.kohsuke.file_leak_detector.instrumented.lucene.ShuffleFS$1");
+        //addIfFound(classes, "org.kohsuke.file_leak_detector.instrumented.lucene.FilterSeekableByteChannel");
+        addIfFound(classes, "com.dynatrace.esshadow7.apache.lucene.mockfile.FilterDirectoryStream");
+        addIfFound(classes, "com.dynatrace.esshadow7.apache.lucene.mockfile.ShuffleFS$1");
+        addIfFound(classes, "com.dynatrace.esshadow7.apache.lucene.mockfile.FilterSeekableByteChannel");
+        addIfFound(classes, "org.apache.lucene.mockfile.FilterDirectoryStream");
+        addIfFound(classes, "org.apache.lucene.mockfile.ShuffleFS$1");
+        addIfFound(classes, "org.apache.lucene.mockfile.FilterSeekableByteChannel");
 
         instrumentation.retransformClasses(classes.toArray(new Class[0]));
 
@@ -324,6 +334,67 @@ public class AgentMain {
 
         spec.add(new ClassTransformSpec("jdk/internal/jrtfs/JrtDirectoryStream", new CloseInterceptor("close")));
         spec.add(new ClassTransformSpec("jdk/nio/zipfs/ZipDirectoryStream", new CloseInterceptor("close")));
+
+
+        // some custom file-system implementations do not work because they use wrapped DirectoryStream instances
+        // thus let's try to catch the closing of those separately to not report them as leaks
+        try {
+            Class.forName("org.kohsuke.file_leak_detector.instrumented.lucene.FilterDirectoryStream");
+            Collections.addAll(
+                    spec,
+                    new ClassTransformSpec(
+                            "org/kohsuke/file_leak_detector/instrumented/lucene/FilterDirectoryStream", new CloseInterceptor("close")));
+            Collections.addAll(
+                    spec,
+                    new ClassTransformSpec(
+                            "org/kohsuke/file_leak_detector/instrumented/lucene/ShuffleFS$1", new CloseInterceptor("close")));
+            /*Collections.addAll(
+                    spec,
+                    new ClassTransformSpec(
+                            "org/kohsuke/file_leak_detector/instrumented/lucene/FilterSeekableByteChannel", new CloseInterceptor("close")));*/
+
+            System.err.println("Custom close-transformation for FilterDirectoryStream and FilterSeekableByteChannel in tests installed, " + new File(".").getAbsolutePath());
+        } catch (ClassNotFoundException e) {
+            // ignored here
+        }
+        try {
+            Class.forName("com.dynatrace.esshadow7.apache.lucene.mockfile.FilterDirectoryStream");
+            Collections.addAll(
+                    spec,
+                    new ClassTransformSpec(
+                            "com/dynatrace/esshadow7/apache/lucene/mockfile/FilterDirectoryStream", new CloseInterceptor("close")));
+            Collections.addAll(
+                    spec,
+                    new ClassTransformSpec(
+                            "com/dynatrace/esshadow7/apache/lucene/mockfile/ShuffleFS$1", new CloseInterceptor("close")));
+            Collections.addAll(
+                    spec,
+                    new ClassTransformSpec(
+                            "com/dynatrace/esshadow7/apache/lucene/mockfile/FilterSeekableByteChannel", new CloseInterceptor("close")));
+
+            System.err.println("Custom close-transformation for FilterDirectoryStream and FilterSeekableByteChannel in com.dynatrace installed, " + new File(".").getAbsolutePath());
+        } catch (ClassNotFoundException e) {
+            // ignored here
+        }
+        try {
+            Class.forName("org.apache.lucene.mockfile.FilterDirectoryStream");
+            Collections.addAll(
+                    spec,
+                    new ClassTransformSpec(
+                            "org/apache/lucene/mockfile/FilterDirectoryStream", new CloseInterceptor("close")));
+            Collections.addAll(
+                    spec,
+                    new ClassTransformSpec(
+                            "org/apache/lucene/mockfile/ShuffleFS$1", new CloseInterceptor("close")));
+            Collections.addAll(
+                    spec,
+                    new ClassTransformSpec(
+                            "org/apache/lucene/mockfile/FilterSeekableByteChannel", new CloseInterceptor("close")));
+
+            System.err.println("Custom close-transformation for FilterDirectoryStream and FilterSeekableByteChannel in org.apache installed, " + new File(".").getAbsolutePath());
+        } catch (ClassNotFoundException e) {
+            // ignored here
+        }
 
         /*
          * Detect selectors, which may open native pipes and anonymous inodes for event polling.
