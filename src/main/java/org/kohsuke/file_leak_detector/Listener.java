@@ -492,6 +492,13 @@ public class Listener {
         PrintWriter pw = new PrintWriter(w);
         Record[] records = TABLE.values().toArray(new Record[0]);
 
+        /*pw.println("Transformations");
+        List<ClassTransformSpec> spec = AgentMain.createSpec();
+        for (ClassTransformSpec transformSpec : spec) {
+            pw.println("Transform: " + transformSpec.name);
+        }
+        pw.println();*/
+
         pw.println(records.length + " descriptors are open");
         int i = 0;
         for (Record r : records) {
