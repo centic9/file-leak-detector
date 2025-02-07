@@ -23,6 +23,8 @@ import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import org.junit.After;
+import org.junit.Assume;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.kohsuke.file_leak_detector.Listener;
 
@@ -33,11 +35,25 @@ import org.kohsuke.file_leak_detector.Listener;
  * @author Kohsuke Kawaguchi
  */
 public class SocketTest {
+
     static {
         // disable keepAlive for sun.net.www.http.HttpClient
         // as otherwise some connections are kept open for re-use
         // https://docs.oracle.com/javase/7/docs/technotes/guides/net/http-keepalive.html
         System.setProperty("http.keepAlive", "false");
+    }
+
+    @BeforeClass
+    public static void beforeAll() {
+        try {
+            SocketImpl.class.getDeclaredField("socket");
+        } catch (NoSuchFieldException e) {
+            // Java 17+ changed the implementation of Sockets and
+            // so the current approach does not work there anymore
+            // for now we gracefully handle this and do keep file-leak-detector
+            // useful for other types of file-handle-leaks
+            Assume.assumeNoException("Cannot run SocketTest with Java 17 or newer", e);
+        }
     }
 
     @After
