@@ -378,4 +378,27 @@ public class FileDemo {
         assertThat(traceOutput, containsString("Opened " + new File(url.getFile()).getAbsolutePath()));
         assertThat(traceOutput, containsString("Closed " + new File(url.getFile()).getAbsolutePath()));
     }
+
+    @Test
+    public void testJRTFileSystem() throws IOException {
+        FileSystem fileSystem = FileSystems.getFileSystem(URI.create("jrt:/"));
+        Path path = fileSystem.getPath("/modules");
+        try (DirectoryStream<Path> ds = Files.newDirectoryStream(path)) {
+            assertNotNull(ds);
+
+            assertNotNull("No file record for file=" + path + " found", findPathRecord(path));
+
+            assertThat(
+                    "Did not have the expected type of 'marker' object: " + obj,
+                    obj,
+                    instanceOf(DirectoryStream.class));
+        }
+        assertNull("File record for file=" + path + " not removed", findPathRecord(path));
+        assertThat("Did not have the expected type of 'marker' object: " + obj, obj, instanceOf(DirectoryStream.class));
+        assertThat("Did not have the expected type of 'marker' object: " + obj, obj, instanceOf(DirectoryStream.class));
+
+        String traceOutput = output.toString();
+        assertThat(traceOutput, containsString("Opened " + tempFile));
+        assertThat(traceOutput, containsString("Closed " + tempFile));
+    }
 }
