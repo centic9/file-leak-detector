@@ -329,10 +329,6 @@ public class FileDemo {
                 "Did not have the expected type of 'marker' object: " + obj,
                 obj,
                 instanceOf(SeekableByteChannel.class));
-        assertThat(
-                "Did not have the expected type of 'marker' object: " + obj,
-                obj,
-                instanceOf(SeekableByteChannel.class));
 
         String traceOutput = output.toString();
         assertThat(traceOutput, containsString("Opened " + tempFile));
