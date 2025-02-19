@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 if [ "${OSTYPE}" == "msys" ];then
   echo "Run this in a cygwin terminal, not MSYS/Mingw"
